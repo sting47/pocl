@@ -1,10 +1,14 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <CL/opencl.h>
 #include <poclu.h>
+// #include "/home/sting47/Library/test/pocl/lib/get_default_queue.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// queue_t *get_default_queue_host(void);
 
 void 
 delete_memobjs(cl_mem *memobjs, int n) 
@@ -23,7 +27,7 @@ exec_dot_product_kernel(const char *program_source,
   cl_device_id  *devices; 
   cl_program  program; 
   cl_kernel  kernel; 
-  cl_mem       memobjs[3]; 
+  cl_mem       memobjs[4]; 
   size_t       global_work_size[1]; 
   size_t       local_work_size[1]; 
   size_t       cb; 
@@ -86,11 +90,11 @@ exec_dot_product_kernel(const char *program_source,
       clReleaseContext(context); 
       return -1; 
     } 
- 
-  // create the program 
-  program = clCreateProgramWithSource(context, 
-				      1, (const char**)&program_source, NULL, NULL); 
-  if (program == (cl_program)0) 
+
+  memobjs[3] = clCreateBuffer(context, 
+			      CL_MEM_READ_WRITE, 
+			      sizeof(cl_float4) * n, NULL, NULL); 
+  if (memobjs[3] == (cl_mem)0) 
     { 
       delete_memobjs(memobjs, 3); 
       clReleaseCommandQueue(cmd_queue); 
@@ -98,10 +102,29 @@ exec_dot_product_kernel(const char *program_source,
       return -1; 
     } 
  
+  // create the program 
+  program = clCreateProgramWithSource(context, 
+				      1, (const char**)&program_source, NULL, NULL); 
+  if (program == (cl_program)0) 
+    { 
+      delete_memobjs(memobjs, 4); 
+      clReleaseCommandQueue(cmd_queue); 
+      clReleaseContext(context); 
+      return -1; 
+    } 
+ 
+  // queue_t *tmp = get_default_queue_host();
+  // tmp->x = 8;
   // build the program 
+  printf("before build program\n");
   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL); 
   if (err != CL_SUCCESS) 
     { 
+      size_t len;
+      char buffer[2048];
+      printf("Build Error Code: %d\n", err);
+      clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+      printf("%s\n", buffer);
       delete_memobjs(memobjs, 3); 
       clReleaseProgram(program); 
       clReleaseCommandQueue(cmd_queue); 
@@ -113,6 +136,7 @@ exec_dot_product_kernel(const char *program_source,
   kernel = clCreateKernel(program, "dot_product", NULL); 
   if (kernel == (cl_kernel)0) 
     { 
+      printf("Create Kernel Fail\n");
       delete_memobjs(memobjs, 3); 
       clReleaseProgram(program); 
       clReleaseCommandQueue(cmd_queue); 
@@ -127,10 +151,13 @@ exec_dot_product_kernel(const char *program_source,
 			sizeof(cl_mem), (void *) &memobjs[1]); 
   err |= clSetKernelArg(kernel, 2,
 			sizeof(cl_mem), (void *) &memobjs[2]); 
+  err |= clSetKernelArg(kernel, 3,
+			sizeof(cl_mem), (void *) &memobjs[3]); 
  
   if (err != CL_SUCCESS) 
     { 
-      delete_memobjs(memobjs, 3); 
+      printf("Set Args Fail\n");
+      delete_memobjs(memobjs, 4); 
       clReleaseKernel(kernel); 
       clReleaseProgram(program); 
       clReleaseCommandQueue(cmd_queue); 
@@ -148,6 +175,7 @@ exec_dot_product_kernel(const char *program_source,
 			       0, NULL, NULL); 
   if (err != CL_SUCCESS) 
     { 
+      printf("Execute Kernel Fail\n");
       delete_memobjs(memobjs, 3); 
       clReleaseKernel(kernel); 
       clReleaseProgram(program); 
@@ -162,7 +190,7 @@ exec_dot_product_kernel(const char *program_source,
 			    0, NULL, NULL); 
   if (err != CL_SUCCESS) 
     { 
-      delete_memobjs(memobjs, 3); 
+      delete_memobjs(memobjs, 4); 
       clReleaseKernel(kernel); 
       clReleaseProgram(program); 
       clReleaseCommandQueue(cmd_queue); 
@@ -179,7 +207,7 @@ exec_dot_product_kernel(const char *program_source,
 
 
   // release kernel, program, and memory objects 
-  delete_memobjs(memobjs, 3); 
+  delete_memobjs(memobjs, 4); 
   clReleaseKernel(kernel); 
   clReleaseProgram(program); 
   clReleaseCommandQueue(cmd_queue); 

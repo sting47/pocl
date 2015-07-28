@@ -25,6 +25,7 @@
 #include "pocl_cl.h"
 #include "pocl_util.h"
 #include <string.h>
+#include <stdio.h>
 
 CL_API_ENTRY cl_program CL_API_CALL
 POname(clCreateProgramWithSource)(cl_context context,
@@ -33,6 +34,56 @@ POname(clCreateProgramWithSource)(cl_context context,
                           const size_t *lengths,
                           cl_int *errcode_ret) CL_API_SUFFIX__VERSION_1_0
 {
+#if 0
+  // sting enqueue_kernel pre-parser
+  int inpi = 0, sti = 0, si = 0;
+  //size_t tt = lengths[0];
+  char **strings;
+  /*for (si = 0; si < 6; si++)
+  {
+    printf("Test: %u\n", strlen(strings_input[0]));
+  }*/
+  char *include_enq = strstr(strings_input[0], "enqueue_kernel");
+  char *enq_start = strstr(include_enq+1, "enqueue_kernel");
+  char *enq_end = strstr(enq_start+1, ";");
+  char tmp[3000];
+  // copy the previous part
+  memcpy (tmp, strings_input[0], strlen(strings_input[0]) - strlen(enq_start) - 2);
+  
+  // store the enqueue line to a tmp storage
+  char tmp_enq[300];
+  memcpy (tmp_enq, enq_start, strlen(enq_start) - strlen(enq_end) + 2);
+  tmp_enq[strlen(tmp_enq)-1] = NULL;
+
+  // find the end quote, and copy the rest of the code
+  char tmp_rest[3000];
+  char *enq_rest = strstr(enq_end+1, "}");
+  memcpy (tmp_rest, enq_end+1, strlen(enq_end) - strlen(enq_rest));
+  tmp_rest[strlen(tmp_rest)-1] = NULL;
+  tmp_rest[strlen(tmp_rest)-1] = NULL;
+
+  // printf("The string: \n%s\n", tmp_rest);
+  // printf("The size: %u, %c\n", strlen(tmp_enq), tmp_enq[strlen(tmp_enq)-2]);
+  // printf("The count: %u\n", strlen(enq));
+  // printf("TEST: %s\n", strings_input[0]);
+  strings = (char **) malloc (sizeof(char *));
+  strings[0] = (char *) malloc (strlen(strings_input[0])+100);
+  memcpy (strings[0], tmp, strlen(tmp));
+  strcat (strings[0], tmp_rest);
+  strcat (strings[0], tmp_enq);
+  strcat (strings[0], "}");
+  // printf("The new kernel:\n %s\n", strings[0]);
+
+  // free the input source
+  /*int xxx = 0;
+  for (; xxx < count; x++)
+  {
+    free(strings_input[xxx]);
+  }
+  free(strings_input);*/
+#endif
+  
+
   cl_program program = NULL;
   size_t size = 0;
   char *source = NULL;

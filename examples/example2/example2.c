@@ -133,15 +133,22 @@ main (void)
       return -1; 
     } 
  
+  printf("before cl program\n");
   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL); 
   if (err != CL_SUCCESS) 
     { 
+      size_t len;
+      char buffer[2048];
+      printf("Build Error Code: %d\n", err);
+      clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+      printf("%s\n", buffer);
       clReleaseProgram(program); 
       clReleaseCommandQueue(cmd_queue); 
       clReleaseContext(context); 
       return -1; 
     } 
  
+  printf("before create kernel\n");
   kernel = clCreateKernel(program, "matrix_transpose", NULL); 
   if (kernel == (cl_kernel)0) 
     { 

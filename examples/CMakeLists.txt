@@ -55,4 +55,4 @@ add_subdirectory("example2a")
 add_subdirectory("standalone")
 add_subdirectory("scalarwave")
 add_subdirectory("trig")
-
+add_subdirectory("oneDblur")

@@ -1,19 +1,21 @@
 #define USE_VECTOR_DATATYPES
-#include "/home/sting47/Library/pocl_enque/lib/kernel/enqueue_kernel.c"
+#include "/home/sting47/Library/test/pocl/lib/kernel/enqueue_kernel.c"
 // #include "/home/sting47/Library/test/pocl/lib/put_in.c"
 // #include "/home/sting47/Library/test/pocl/lib/get_default_queue.c"
 
+#if 0
 __kernel void
-kenhaha (__global const float4 *a,  
-         __global const float4 *b, __global float *c)
+kenhaha (__global const int *a,  
+         __global const int *b, __global float *c)
 {
   int gid = get_global_id(0);
   c[gid] = 4.0;
 }
+#endif
 
 __kernel void 
-dot_product_child (__global const float4 *a,
-	     __global const float4 *b, __global float *c, __global float4 *d) 
+dot_product_child (__global const int *a,
+	     __global int *b, __global int *c) 
 { 
   int gid = get_global_id(0); 
 
@@ -45,8 +47,17 @@ dot_product_child (__global const float4 *a,
 
 #else
   // queue_t in_queue = get_default_queue();
-  float4 prod = a[gid] * d[gid];
-  c[gid] = prod.x + prod.y + prod.z + prod.w;
+  // int res = b[gid-1] + b[gid] + b[gid+1];
+  int res;
+  int max = get_global_size(0);
+  if(gid<128)
+    res = b[gid] + b[gid+128];
+  else if(gid>max-128)
+    res = b[gid] + b[gid-128];
+  else
+    res = b[gid-128] + b[gid] + b[gid+128];
+  // c[gid] = prod.x + prod.y + prod.z + prod.w;
+  c[gid] = res;
   // c[gid] = in_queue->x;
 #endif
  
@@ -54,8 +65,8 @@ dot_product_child (__global const float4 *a,
 }
 
 __kernel void 
-dot_product (__global const float4 *a,  
-	     __global const float4 *b, __global float *c, __global float4 *d) 
+dot_product (__global const int *a,  
+	     __global int *b, __global int *c, volatile __global int *counter) 
 { 
   int gid = get_global_id(0); 
 
@@ -87,12 +98,36 @@ dot_product (__global const float4 *a,
 
 #else
   // queue_t in_queue = get_default_queue();
-  float4 prod = a[gid] * b[gid];
-  barrier(CLK_LOCAL_MEM_FENCE);
+  int res;
+  int id = get_local_id(0);
+  int max = get_global_size(0);
+  if(gid<128)
+    res = a[gid] + a[gid+128];
+  else if(gid>max-128)
+    res = a[gid] + a[gid-128];
+  else
+    res = a[gid-128] + a[gid] + a[gid+128];
+  // barrier(CLK_LOCAL_MEM_FENCE);
   // d[gid] = prod;
-  c[gid] = prod.x + prod.y + prod.z + prod.w;
-  // void (^ken_wrapper)(void) = ^{dot_product_child(a, b, c, d);};
-  // enqueue_kernel(ken_wrapper);
+  // c[gid] = prod.x + prod.y + prod.z + prod.w;
+  // res = a[gid] + a[gid+1] + a[gid+2];
+  b[gid] = res;
+  // c[gid] = res;
+  // barrier(CLK_LOCAL_MEM_FENCE);
+  if(id==0)
+    counter[0] = counter[0] - 1;
+
+  int tmp_test = 0;
+  while(counter[0]!=0){
+    tmp_test++;
+    barrier(CLK_GLOBAL_MEM_FENCE);
+  }
+
+  // if(id==0)
+    // barrier(CLK_GLOBAL_MEM_FENCE);
+  barrier(CLK_GLOBAL_MEM_FENCE);
+  void (^ken_wrapper)(void) = ^{dot_product_child(a, b, c);};
+  enqueue_kernel(ken_wrapper);
   // c[gid] = in_queue->x;
 #endif
  
